@@ -1,0 +1,75 @@
+# stages:
+#   - build
+#   - deploy
+# 
+# build:
+#   stage: build
+#   image: docker
+#   services:
+#     - docker:dind
+#   script:
+#     - docker build -t snapfile .
+#     - docker save -o snapfile.tar snapfile
+#   artifacts:
+#     paths:
+#       - snapfile.tar
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes:
+#         - "*/**/*"
+#         - ".*/**/*"
+#         - ".*"
+#         - "pubspec.*"
+# 
+# deploy:
+#   stage: deploy
+#   image: alpine
+#   before_script:
+#     - apk update && apk add --no-cache rsync openssh-client
+#     - chmod 400 $SERVER_SSH_KEY
+#   script:
+#     - rsync -avP -e "ssh -o StrictHostKeyChecking=no -i $SERVER_SSH_KEY" snapfile.tar $SERVER_USER@$SERVER_IP:~
+#     - ssh -o StrictHostKeyChecking=no -i $SERVER_SSH_KEY $SERVER_USER@$SERVER_IP "~/update.sh"
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       changes:
+#         - "*/**/*"
+#         - ".*/**/*"
+#         - ".*"
+#         - "pubspec.*"
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: alexttyip/flutter
+  script:
+    - flutter build web
+  artifacts:
+    paths:
+      - build/web
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        - "*/**/*"
+        - ".*/**/*"
+        - ".*"
+        - "pubspec.*"
+
+deploy:
+  stage: deploy
+  image: alpine
+  before_script:
+    - apk update && apk add --no-cache rsync openssh-client
+    - chmod 400 $SERVER_SSH_KEY
+  script:
+    - rsync -avP -e "ssh -o StrictHostKeyChecking=no -i $SERVER_SSH_KEY" ./build/web/ $SERVER_USER@$SERVER_IP:~/snapfile/build/
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        - "*/**/*"
+        - ".*/**/*"
+        - ".*"
+        - "pubspec.*"
